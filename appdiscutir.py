@@ -11,22 +11,20 @@ st.title("📐 Laboratorio Didáctico: Discusión y Gráfica de Relaciones (Pote
 st.markdown("Analiza curvas paso a paso utilizando el método clásico de discusión de relaciones mediante inteligencia artificial.")
 
 # =========================================================================
-# CONFIGURACIÓN DE LA API DE GEMINI (CORREGIDA)
+# CONFIGURACIÓN DE LA API DE GEMINI (AJUSTE DE SEGURIDAD DIRECTO)
 # =========================================================================
-# Intentamos jalar la clave desde los Secrets de Streamlit o del entorno
+# 1. Intentamos jalar la clave desde los Secrets de Streamlit o del entorno
 api_key_env = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
-# Si se encuentra en secrets, la asignamos explícitamente al entorno para que el cliente la tome de forma nativa
+client = None
 if api_key_env:
-    os.environ["GEMINI_API_KEY"] = api_key_env
-
-try:
-    # Inicialización limpia oficial: la librería busca "GEMINI_API_KEY" automáticamente en las variables de entorno
-    client = genai.Client()
-    api_lista = True
-except Exception as e_init:
-    api_lista = False
-    st.error(f"Error al inicializar el cliente de IA: {e_init}")
+    try:
+        # Pasamos la clave directamente al inicializador para asegurar que no falle
+        client = genai.Client(api_key=api_key_env)
+    except Exception as e_init:
+        st.error(f"Error al inicializar el cliente de IA: {e_init}")
+else:
+    st.error("⚠️ No se detectó la clave `GEMINI_API_KEY`. Por favor, agrégala en los Secrets de Streamlit Cloud o en tu entorno local.")
 
 # =========================================================================
 # BARRA LATERAL: ENTRADA DE LA RELACIÓN
@@ -48,8 +46,8 @@ calcular = st.sidebar.button("Discutir y Graficar Relación", type="primary")
 # FLUJO PRINCIPAL DE PROCESAMIENTO
 # =========================================================================
 if calcular:
-    if not api_key_env:
-        st.error("⚠️ No se detectó la clave `GEMINI_API_KEY`. Por favor, agrégala en los Secrets de Streamlit Cloud o en tu entorno local.")
+    if client is None:
+        st.error("No se puede realizar el cálculo porque la API Key no es válida o no está configurada en Streamlit.")
     else:
         # Prompt pedagógico adaptado al estilo estructurado de tu pizarra
         prompt_matematico = f"""
@@ -95,7 +93,7 @@ if calcular:
                 st.divider()
                 
             except Exception as e_api:
-                st.error(f"Error al generar el contenido con Gemini: {e_api}")
+                st.error(f"Error al generar el contenido con Gemini: {e_api}. Por favor verifica que tu clave copiada en Secrets sea la correcta.")
 
         # =========================================================================
         # RENDERIZADO GRÁFICO SEGURO (USANDO MATPLOTLIB NUMÉRICO)
@@ -129,7 +127,6 @@ if calcular:
 
             fig, ax = plt.subplots(figsize=(9, 6.5))
             
-            # Enmascarar saltos asintóticos de divisiones por cero
             posibles_saltos = np.where(np.abs(np.diff(y_vals)) > 10)[0]
             if len(posibles_saltos) > 0:
                 tramos = np.split(x_vals, posibles_saltos + 1)
@@ -158,4 +155,4 @@ if calcular:
             st.pyplot(fig)
 
         except Exception as e_plot:
-            st.info("Nota sobre la gráfica: La expresión cargada contiene una estructura implícita o requiere manipulación manual para el renderizado continuo. Puedes guiarte con los puntos del análisis de la IA.")
+            st.info("Nota sobre la gráfica: Expresión implícita detectada.")
